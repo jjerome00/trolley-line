@@ -20,10 +20,11 @@ Adafruit_DCMotor *myMotor = AFMS.getMotor(1);
 
 
 #define LEDPIN 13
-#define SENSOR_PIN_ONE 4
-#define SENSOR_PIN_TWO 2
+#define SENSOR_PIN_ONE 4  //right
+#define SENSOR_PIN_TWO 2  //left
 #define BUTTON_PIN 7
 #define BUTTON_PIN_LED 8
+#define MUSIC_PIN 13
 
 // current set direction of the motor (forward or reverse)
 int direction = FORWARD;
@@ -47,18 +48,22 @@ void setup() {
   pinMode(BUTTON_PIN_LED, OUTPUT); // start button's LED
   pinMode(SENSOR_PIN_ONE, INPUT); // sensor one
   pinMode(SENSOR_PIN_TWO, INPUT); // sensor two
+  pinMode(MUSIC_PIN, OUTPUT); // music
 
   digitalWrite(LEDPIN, HIGH);
   digitalWrite(BUTTON_PIN, HIGH);
   digitalWrite(BUTTON_PIN_LED, HIGH);
   digitalWrite(SENSOR_PIN_ONE, HIGH);
   digitalWrite(SENSOR_PIN_TWO, HIGH);
+  digitalWrite(MUSIC_PIN, HIGH);
   
   // setup motor
   AFMS.begin();
-  myMotor->setSpeed(250);
+  myMotor->setSpeed(175);
 
   Serial.println("Hello! Ready!");
+
+  //digitalWrite(MUSIC_PIN, LOW);
 }
 
 
@@ -78,6 +83,7 @@ void loop() {
     }
 
     if (!moving) {
+      digitalWrite(MUSIC_PIN, HIGH);
       // if we have stopped, pause before allowing another button press
       delay(4000);
       setReadyLED(HIGH);
@@ -107,6 +113,7 @@ void startTrolley() {
   resetIRState();
   moving = true;
   setReadyLED(LOW);
+  digitalWrite(MUSIC_PIN, LOW);
 }
 
 /**
@@ -145,6 +152,9 @@ void checkSensor(int id, int sensorPin, int &irCurrentState, int &irLastState, i
     Serial.print("IR Sensor tripped: ");
     Serial.println(id);
     moving = false;
+    
+    digitalWrite(MUSIC_PIN, HIGH);
+    
     myMotor->run(RELEASE);
     delay(1000);
 
