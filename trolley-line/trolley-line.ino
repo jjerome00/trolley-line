@@ -11,13 +11,12 @@
 #include <Wire.h>
 #include <Adafruit_MotorShield.h>
 
-// Create the motor shield object with the default I2C address
+// Create the motor shield object
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();  
 
 // Select which 'port' M1, M2, M3 or M4. In this case, M1
 Adafruit_DCMotor *myMotor = AFMS.getMotor(1);
 // (End) Motor controller
-
 
 #define LEDPIN 13
 #define SENSOR_PIN_ONE 4  //right
@@ -39,6 +38,10 @@ bool moving = false;
 // used for detecting idle state while debugging (see loop())
 bool idleLogFlag = false;
 
+// time limit: adjust to your needs, it takes current trolley about 22 seconds to make it between sensors
+unsigned long total_time = 25000;
+unsigned long current_time = 0;
+unsigned long previous_time = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -62,13 +65,19 @@ void setup() {
   myMotor->setSpeed(175);
 
   Serial.println("Hello! Ready!");
-
-  //digitalWrite(MUSIC_PIN, LOW);
 }
 
 
 void loop() {
   if (moving) {
+    current_time = millis();
+
+    if (previous_time == 0) {
+      // if previous_time is set to zero, set it to current_time
+      // (this is a guard - just in case someone forgot to set previous_time)
+      previous_time = current_time;
+    }
+    
     // continue moving (or start if this is the first time we're here) 
     myMotor->run(direction);
 
@@ -114,6 +123,9 @@ void startTrolley() {
   moving = true;
   setReadyLED(LOW);
   digitalWrite(MUSIC_PIN, LOW);
+
+  // start counting time
+  previous_time = current_time;
 }
 
 /**
@@ -146,16 +158,28 @@ void checkSensor(int id, int sensorPin, int &irCurrentState, int &irLastState, i
   // get current state
   irCurrentState = digitalRead(sensorPin);
 
+  bool timeIsUp = (current_time - previous_time >= total_time);
+  bool sensorTripped = (irCurrentState != irLastState);
+
   // check against the last reading of state (this indicates if the sensor has been tripped)
-  if (irCurrentState != irLastState) {
-    //stop motor & pause 1 second
-    Serial.print("IR Sensor tripped: ");
-    Serial.println(id);
+  if (sensorTripped || timeIsUp) {
+    //stop motor
+      
+    // log result
+    if (sensorTripped) {
+      Serial.print("STOPPED: IR Sensor tripped: ");
+      Serial.println(id);
+    }
+    if (timeIsUp) {
+      Serial.println("STOPPED: time is up");
+    }
+
+    // stop everything, wait one second
     moving = false;
-    
     digitalWrite(MUSIC_PIN, HIGH);
-    
     myMotor->run(RELEASE);
+    current_time = 0;
+    previous_time = 0;
     delay(1000);
 
     // change direction (to be ready for next button press)

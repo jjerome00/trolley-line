@@ -10,6 +10,10 @@ THEN trolley will travel to other side of track
 WHEN trolley breaks the ir beam on that side of track   
 THEN the trolley will stop   
 
+WHEN trolley moves for 25 seconds
+THEN the trolley will stop
+(in case of ir beam failure)
+
 WHEN the user presses the button (again)   
 THEN the trolley will travel towards the other side of track    
 (repeat)   
