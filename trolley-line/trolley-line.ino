@@ -39,7 +39,7 @@ bool moving = false;
 bool idleLogFlag = false;
 
 // time limit: adjust to your needs, it takes current trolley about 22 seconds to make it between sensors
-unsigned long total_time = 25000;
+unsigned long total_time = 23000;
 unsigned long current_time = 0;
 unsigned long previous_time = 0;
 
