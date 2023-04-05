@@ -23,7 +23,7 @@ Adafruit_DCMotor *myMotor = AFMS.getMotor(1);
 #define SENSOR_PIN_TWO 2  //left
 #define BUTTON_PIN 7
 #define BUTTON_PIN_LED 8
-#define MUSIC_PIN 13
+#define MUSIC_PIN 12
 
 // current set direction of the motor (forward or reverse)
 int direction = FORWARD;
@@ -58,13 +58,17 @@ void setup() {
   digitalWrite(BUTTON_PIN_LED, HIGH);
   digitalWrite(SENSOR_PIN_ONE, HIGH);
   digitalWrite(SENSOR_PIN_TWO, HIGH);
-  digitalWrite(MUSIC_PIN, HIGH);
+  playMusic(false);
+
+  Serial.println("Hello!");
   
   // setup motor
   AFMS.begin();
   myMotor->setSpeed(175);
 
-  Serial.println("Hello! Ready!");
+  Serial.println("Ready!");
+  Serial.println("Starting trolley on first run");
+  startTrolley();
 }
 
 
@@ -82,7 +86,6 @@ void loop() {
     myMotor->run(direction);
 
     // only check the sensor that the trolley is moving towards
- 
     if (direction == FORWARD) {
       checkSensor(2, SENSOR_PIN_TWO, irSensorTwo, irTwoLastState, BACKWARD);
     }
@@ -92,10 +95,10 @@ void loop() {
     }
 
     if (!moving) {
-      digitalWrite(MUSIC_PIN, HIGH);
+      playMusic(false);
       // if we have stopped, pause before allowing another button press
       delay(4000);
-      setReadyLED(HIGH);
+      setReadyLight(true);
     }
     
   } else {
@@ -108,7 +111,8 @@ void loop() {
     }
 
     if (digitalRead(BUTTON_PIN) == LOW) {
-      // start button has been pressed - other side of if statement will be run when the loop continues
+      // start button has been pressed 
+      // - the other side of this if statement will be run when the loop continues
       startTrolley();
     }
   }
@@ -121,11 +125,19 @@ void startTrolley() {
   Serial.println("button pressed - STARTING!");
   resetIRState();
   moving = true;
-  setReadyLED(LOW);
-  digitalWrite(MUSIC_PIN, LOW);
+  setReadyLight(false);
+  playMusic(true);
 
   // start counting time
   previous_time = current_time;
+}
+
+void playMusic(bool play) {
+  if (play) {
+    digitalWrite(MUSIC_PIN, LOW);
+  } else {
+    digitalWrite(MUSIC_PIN, HIGH);
+  }
 }
 
 /**
@@ -145,9 +157,14 @@ void resetIRState() {
  * The LED Pin is used for debugging - it's the LED on the aurdino board itself
  * The Start Button has an LED inside it that the user will see
  */
-void setReadyLED(int newState) {
-  digitalWrite(LEDPIN, newState);
-  digitalWrite(BUTTON_PIN_LED, newState);
+void setReadyLight(bool onState) {
+  if (onState) {
+    digitalWrite(LEDPIN, HIGH);
+    digitalWrite(BUTTON_PIN_LED, HIGH);
+  } else {
+    digitalWrite(LEDPIN, LOW);
+    digitalWrite(BUTTON_PIN_LED, LOW);
+  }
 }
 
 /**
@@ -176,7 +193,7 @@ void checkSensor(int id, int sensorPin, int &irCurrentState, int &irLastState, i
 
     // stop everything, wait one second
     moving = false;
-    digitalWrite(MUSIC_PIN, HIGH);
+    playMusic(false);
     myMotor->run(RELEASE);
     current_time = 0;
     previous_time = 0;
