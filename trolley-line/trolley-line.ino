@@ -1,15 +1,16 @@
 /**
  * For use with trolley motor, (2) IR sensors, and a button
  * 
- * Use the 2 IR sensors on each side of track
+ * 2 sensors on either side of track
  * Motor control to move the trolley (plus direction)
- * Button to start
+ * Button to start (with LED)
+ * Music plays
  * 
  * Left and Right are positions as if you are 
  * standing in front of the display
  * 
- * FORWARD is going towards the Left side
- * BACKWARD is going towards the Right side
+ * FORWARD is going towards the LEFT side
+ * BACKWARD is going towards the RIGHT side
  */
 
 // Motor controller
@@ -33,14 +34,16 @@ Adafruit_DCMotor *myMotor = AFMS.getMotor(1);
 // current set direction of the motor (forward or reverse)
 int direction = FORWARD; //forward is towards Left
 
-// current & last state of both ir sensors (left & right)
+// current & last state of both sensors (left & right)
 int irSensorRight = 0, irSensorRightLast = 0;
 int irSensorLeft = 0, irSensorLeftLast = 0;
+bool leftSensor = false;
+bool rightSensor = false;
 
 // current state of the trolley/motor, moving or not
 bool moving = false;
 
-// used for detecting idle state while debugging (see loop())
+// used for detecting idle state while debugging
 bool idleLogFlag = false;
 
 // time limit: just in case a sensor doesn't work 
@@ -55,8 +58,8 @@ void setup() {
   pinMode(LEDPIN, OUTPUT); // ready pin (on arudino board - debug only)
   pinMode(BUTTON_PIN, INPUT_PULLUP);  // start button
   pinMode(BUTTON_PIN_LED, OUTPUT); // start button's LED
-  pinMode(SENSOR_PIN_RIGHT, INPUT); // sensor one / right
-  pinMode(SENSOR_PIN_LEFT, INPUT); // sensor two / left
+  pinMode(SENSOR_PIN_RIGHT, INPUT); // sensor one - right
+  pinMode(SENSOR_PIN_LEFT, INPUT); // sensor two - left
   pinMode(MUSIC_PIN, OUTPUT); // music
 
   digitalWrite(LEDPIN, HIGH);
@@ -78,35 +81,37 @@ void setup() {
   startTrolley();
 }
 
-
 void loop() {
   if (moving) {
     current_time = millis();
 
     if (previous_time == 0) {
-      // if previous_time is set to zero, set it to current_time
+      // if previous_time is zero, set it to current_time
       previous_time = current_time;
     }
     
     // continue moving (or start if this is the first time we're here) 
     myMotor->run(direction);
 
-    // only check the sensor that the trolley is moving towards
+    leftSensor = false;
+    rightSensor = false;
+
     if (direction == FORWARD) {
-      checkSensor(2, SENSOR_PIN_LEFT, irSensorLeft, irSensorLeftLast, BACKWARD);
+      leftSensor = checkSensor(2, SENSOR_PIN_LEFT, irSensorLeft, irSensorLeftLast);
     }
     else if (direction == BACKWARD) {
-      checkSensor(1, SENSOR_PIN_RIGHT, irSensorRight, irSensorRightLast, FORWARD);
+      rightSensor = checkSensor(1, SENSOR_PIN_RIGHT, irSensorRight, irSensorRightLast);
     }
 
-    // check to see if we've stopped and update state
-    if (!moving) {
-      playMusic(false);
+    if (leftSensor || rightSensor) {
+      stopEverything();
+      switchDirections();
+
       // pause before allowing another button press
       delay(4000);
       setReadyLight(true);
     }
-    
+ 
   } else {
     // we're not moving - wait for button press
 
@@ -114,16 +119,44 @@ void loop() {
     playMusic(false);
 
     if (!idleLogFlag) {
-      // ensure we only log "idling" once (and not a million times)
+      // only log "idling" once (and not a million times)
       Serial.println("Idling...");
-      idleLogFlag = true;  
+      idleLogFlag = true;
     }
 
     if (digitalRead(BUTTON_PIN) == LOW) {
       // start button has been pressed 
-      // - the other side of main if statement will be run when the loop continues
       startTrolley();
     }
+  }
+}
+
+/**
+ * STOP EVERYTHING
+ * reset variables & wait one second
+ */
+void stopEverything() {
+  Serial.println("STOPPING");
+  
+  moving = false;
+  playMusic(false);
+  
+  myMotor->run(RELEASE);
+  
+  current_time = 0;
+  previous_time = 0;
+  delay(1000);
+}
+
+/**
+ * change driving direction 
+ * (motor should be stopped)
+ */
+void switchDirections() {
+  if (direction == FORWARD) {
+    direction = BACKWARD;
+  } else {
+    direction = FORWARD;
   }
 }
 
@@ -185,59 +218,39 @@ void setReadyLight(bool onState) {
 }
 
 /**
- * stop everything, wait one second
- * called from checkSensor(...)
- */
-void stopEverything() {
-  moving = false;
-  playMusic(false);
-  myMotor->run(RELEASE);
-  current_time = 0;
-  previous_time = 0;
-  delay(1000);
-}
-
-/**
- * Check current state of sensor given. If sensor tripped stop the motor & change direction of motor (do not start it)
+ * Check current state of sensor given. 
+ * Returns true if sensor is tripped, or if time has elapsed.
+ * 
  * These state variables are passed in by reference, so make sure these are correct.
  */
-void checkSensor(int id, int sensorPin, int &irCurrentState, int &irLastState, int newDirection) {
+bool checkSensor(int id, int sensorPin, int &irCurrentState, int &irLastState) {
   // get current state
   irCurrentState = digitalRead(sensorPin);
 
-  bool timeIsUp = (current_time - previous_time >= total_time);
+  // get time elasped
+  bool timeElapsed = (current_time - previous_time >= total_time);
   bool sensorTripped = (irCurrentState != irLastState);
 
-  // check against the last reading of state (this indicates if the sensor has been tripped)
   if (sensorTripped) {
-    //stop motor
     if (id == 2) {
-      Serial.println("STOPPED: IR Sensor tripped on LEFT (2)");
+      Serial.println("REQUEST STOP: Sensor tripped on LEFT (2)");
     } else {
-      Serial.println("STOPPED: IR Sensor tripped on RIGHT (1)");
+      Serial.println("REQUEST STOP: Sensor tripped on RIGHT (1)");
     }
-    
-    // stop everything, wait one second
-    stopEverything();
-
-    // change direction (to be ready for next button press)
-    direction = newDirection;
-  }
-  else if (timeIsUp) {
-    //stop motor - done separately to keep from screwing up the state
+    return true;
+  } 
+  
+  if (timeElapsed) {
     if (id == 2) {
-      Serial.println("STOPPED: time is up; sensor was LEFT (2)");
+      Serial.println("REQUEST STOP: Time is up; sensor was LEFT (2)");
     } else {
-      Serial.println("STOPPED: time is up; sensor was RIGHT (1)");
+      Serial.println("REQUEST STOP: Time is up; sensor was RIGHT (1)");
     }
-
-    // stop everything, wait one second
-    stopEverything();
-
-    // change direction (to be ready for next button press)
-    direction = newDirection;
+    return true;
   }
-
+  
   // save current state until the next time we check it
   irLastState = irCurrentState;
+
+  return false;
 }
