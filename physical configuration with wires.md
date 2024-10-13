@@ -1,25 +1,44 @@
 
+---
+## Music
+Music requires power, a "button" pin, and ground (pin + ground activate the button)
+Power is supplied via usb connection - easiest way since it can get pure 5v
 
-Music
-Board:Ground -> brown-wire > arduino Ground
-Board:VIN > red-wire > arduino VIN 
-Board:0pin (music) > orange-wire > arudino pin13
+The Music board connects its 0pin to arduino pin 12 
+The Music board ground connects to arduino ground
 
-Motor Controller
-Board:5v > orange-wire > arudino 5v
-Board:Gnd > purple-wire > arudino Gnd
-Board:SCL > green-wire > arudino SCL
-Board:SDA > yellow-wire > arudino SDA
+* Music Board: Ground -> brown-wire > arduino Ground
+* Music Board: 0pin (music) > orange-wire > arudino pin12
+* Music Board vin: Arudino vin
 
-Senors
-note: sensors share their 5v + Gnd
-The 5v + Gnd + Left (signal) + Right (signal) are all fed into a single 4-block terminal
+Speakers use separate USB power and plug into music board via 3.5mm jack
 
-Right side (or Pin One in code)
-Arduino pin4 > yellow-wire > [block terminal] > White-wire for Right side (in bundle)
+--- 
+## Motor Controller
 
-Left side (or Pin Two in code)
-Arduino pin2 > white-wire > [block terminal] > White-wire for Left side (in bundle)
+Motor Board:5v > orange-wire > arudino 5v
+Motor Board:Gnd > purple-wire > arudino Gnd
+Motor Board:SCL > green-wire > arudino SCL
+Motor Board:SDA > yellow-wire > arudino SDA
 
-Arduino 5v > red wire > [block terminal] > to the senors + button (you must share!)
-Arudino Gnd > black (via marker) wire > [block terminal] > to the sensors + button (you must share!)
+--- 
+## Senors
+
+9/2024: I switched the break-beam sensors to a limit switch. 
+* The same logic works except the limit switch does not need power. I only use the ground + pin
+
+#### Right side (or Pin One in code)
+Arduino pin4 > yellow-wire > White-wire for Right side (in bundle)
+
+#### Left side (or Pin Two in code)
+Arduino pin2 > white-wire > White-wire for Left side (in bundle)
+
+Arudino Gnd > black wire > [block terminal] > to the sensors + button
+
+---
+## Button
+
+* Arduino 7: button pin (starts trolley)
+* Arduino 8: button LED 
+* Arduino Ground
+
